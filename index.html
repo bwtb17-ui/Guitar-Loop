@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171717">
+<title>Guitar Loop</title>
+<style>
+  :root{
+    --bg:#111315; --panel:#1a1d20; --panel2:#22262a; --text:#f5f5f5; --muted:#a7adb4;
+    --accent:#e6a23c; --accent2:#ffd17a; --danger:#db5b5b; --line:#343a40; --good:#63c57b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:linear-gradient(#0e1012,#15181b);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    min-height:100vh;padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
+  }
+  .app{max-width:760px;margin:0 auto;padding:16px 0 36px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+  h1{font-size:24px;margin:0}
+  .sub{color:var(--muted);font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
+  .status{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%;background:#666}
+  .dot.rec{background:var(--danger);box-shadow:0 0 0 5px rgba(219,91,91,.14)}
+  .dot.play{background:var(--good);box-shadow:0 0 0 5px rgba(99,197,123,.12)}
+  .main-buttons{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  button{
+    appearance:none;border:1px solid var(--line);border-radius:14px;background:var(--panel2);color:var(--text);
+    min-height:50px;padding:11px 14px;font-size:16px;font-weight:650;cursor:pointer
+  }
+  button.primary{background:var(--accent);color:#1b1408;border-color:transparent}
+  button.recording{background:var(--danger);color:white;border-color:transparent}
+  button:disabled{opacity:.42;cursor:not-allowed}
+  button.small{min-height:40px;font-size:14px;padding:8px 12px}
+  .time{font-variant-numeric:tabular-nums;font-size:30px;font-weight:750;text-align:center;margin:12px 0}
+  canvas{display:block;width:100%;height:150px;background:#101214;border:1px solid var(--line);border-radius:12px;touch-action:none}
+  .trim-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  label{font-size:13px;color:var(--muted);display:block}
+  input[type=range]{width:100%;accent-color:var(--accent);margin-top:8px}
+  input[type=text]{
+    width:100%;border:1px solid var(--line);background:#111315;color:var(--text);
+    border-radius:12px;padding:12px;font-size:16px;margin-top:7px
+  }
+  .value{color:var(--text);font-variant-numeric:tabular-nums}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .row > button{flex:1}
+  .hint{font-size:13px;color:var(--muted);line-height:1.45;margin-top:9px}
+  .loops{display:grid;gap:9px;margin-top:12px}
+  .loop{
+    background:#131619;border:1px solid var(--line);border-radius:13px;padding:11px;
+    display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center
+  }
+  .loop-name{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .loop-meta{font-size:12px;color:var(--muted);margin-top:3px}
+  .loop-actions{display:flex;gap:6px}
+  .loop-actions button{min-height:36px;padding:7px 9px;font-size:13px}
+  .section-title{font-size:17px;font-weight:720;margin:0 0 4px}
+  .empty{color:var(--muted);font-size:14px;padding:8px 0}
+  .footer{color:#777;font-size:12px;text-align:center;margin-top:18px}
+  .pill{font-size:12px;color:var(--accent2);border:1px solid #5d4726;border-radius:99px;padding:5px 8px}
+  @media(max-width:520px){
+    .trim-row{grid-template-columns:1fr}
+    .main-buttons{grid-template-columns:1fr 1fr}
+    .loop{grid-template-columns:1fr}
+    .loop-actions button{flex:1}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>🎸 Guitar Loop</h1>
+      <div class="sub">Record rhythm • trim the beat • practice lead</div>
+    </div>
+    <span class="pill">Offline-ready after load</span>
+  </header>
+
+  <section class="card">
+    <div class="status"><span id="dot" class="dot"></span><span id="status">Ready</span></div>
+    <div id="clock" class="time">0:00.0</div>
+    <div class="main-buttons">
+      <button id="recordBtn" class="primary">● Record</button>
+      <button id="playBtn" disabled>▶ Loop</button>
+    </div>
+    <div class="hint">Tip: tap Record, play several measures of rhythm, then tap Stop. Leave a little extra audio at each end so you can trim it cleanly.</div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">Loop editor</div>
+    <div class="sub">Drag the orange markers on the waveform or use the sliders.</div>
+    <canvas id="wave" width="1200" height="300"></canvas>
+
+    <div class="trim-row">
+      <label>Loop start: <span id="startVal" class="value">0.000 s</span>
+        <input id="startRange" type="range" min="0" max="1" value="0" step="0.001" disabled>
+      </label>
+      <label>Loop end: <span id="endVal" class="value">0.000 s</span>
+        <input id="endRange" type="range" min="0" max="1" value="1" step="0.001" disabled>
+      </label>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <button id="nudgeStartBack" class="small" disabled>Start −10 ms</button>
+      <button id="nudgeStartFwd" class="small" disabled>Start +10 ms</button>
+      <button id="nudgeEndBack" class="small" disabled>End −10 ms</button>
+      <button id="nudgeEndFwd" class="small" disabled>End +10 ms</button>
+    </div>
+    <div class="hint">The tiny 10 ms adjustments are useful for removing the pause or double-beat where the end joins the beginning.</div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">Save this loop</div>
+    <label>Loop name
+      <input id="loopName" type="text" placeholder="Example: Blues in A">
+    </label>
+    <div class="row" style="margin-top:12px">
+      <button id="saveBtn" class="primary" disabled>Save Loop</button>
+      <button id="exportBtn" disabled>Export WAV</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">Saved loops</div>
+    <div class="sub">Stored on this device/browser.</div>
+    <div id="loops" class="loops"><div class="empty">No saved loops yet.</div></div>
+  </section>
+
+  <div class="footer">For best results, use headphones while recording so the loop playback is not re-recorded by the microphone.</div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const recordBtn=$('recordBtn'), playBtn=$('playBtn'), status=$('status'), dot=$('dot'), clock=$('clock');
+  const canvas=$('wave'), ctx=canvas.getContext('2d');
+  const startRange=$('startRange'), endRange=$('endRange'), startVal=$('startVal'), endVal=$('endVal');
+  const saveBtn=$('saveBtn'), exportBtn=$('exportBtn'), loopName=$('loopName'), loopsEl=$('loops');
+  const nudgeButtons=['nudgeStartBack','nudgeStartFwd','nudgeEndBack','nudgeEndFwd'].map($);
+
+  let audioCtx=null, stream=null, sourceNode=null, processor=null, zeroGain=null;
+  let chunks=[], recording=false, recordingStart=0, timer=null;
+  let currentBuffer=null, currentWavBlob=null, currentWavArrayBuffer=null;
+  let loopStart=0, loopEnd=0, playing=false, playSource=null;
+  let dragMarker=null;
+
+  function setStatus(text, mode=''){
+    status.textContent=text; dot.className='dot'+(mode ? ' '+mode : '');
+  }
+  function fmt(t){
+    t=Math.max(0,t||0); const m=Math.floor(t/60); const s=t-m*60;
+    return `${m}:${s.toFixed(1).padStart(4,'0')}`;
+  }
+  function updateClock(){
+    if(recording) clock.textContent=fmt((performance.now()-recordingStart)/1000);
+  }
+  async function ensureAudio(){
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') await audioCtx.resume();
+  }
+  async function startRecording(){
+    try{
+      await ensureAudio();
+      stream=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}, video:false
+      });
+      chunks=[];
+      sourceNode=audioCtx.createMediaStreamSource(stream);
+      processor=audioCtx.createScriptProcessor(4096,1,1);
+      zeroGain=audioCtx.createGain(); zeroGain.gain.value=0;
+      processor.onaudioprocess=e=>{
+        if(!recording) return;
+        chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+      };
+      sourceNode.connect(processor); processor.connect(zeroGain); zeroGain.connect(audioCtx.destination);
+      recording=true; recordingStart=performance.now(); timer=setInterval(updateClock,100);
+      recordBtn.textContent='■ Stop'; recordBtn.classList.add('recording');
+      playBtn.disabled=true; setStatus('Recording…','rec'); clock.textContent='0:00.0';
+    }catch(e){
+      alert('Microphone access is required. On iPhone, allow microphone access for this site in Safari settings.');
+      setStatus('Microphone unavailable');
+    }
+  }
+  async function stopRecording(){
+    recording=false; clearInterval(timer);
+    if(processor){processor.disconnect();processor.onaudioprocess=null}
+    if(sourceNode) sourceNode.disconnect();
+    if(zeroGain) zeroGain.disconnect();
+    if(stream){stream.getTracks().forEach(t=>t.stop())}
+    recordBtn.textContent='● Record'; recordBtn.classList.remove('recording');
+
+    const total=chunks.reduce((n,a)=>n+a.length,0);
+    if(total<1000){setStatus('Recording too short');return}
+    const data=new Float32Array(total); let off=0;
+    chunks.forEach(a=>{data.set(a,off);off+=a.length});
+    currentBuffer=audioCtx.createBuffer(1,data.length,audioCtx.sampleRate);
+    currentBuffer.copyToChannel(data,0);
+    loopStart=0; loopEnd=currentBuffer.duration;
+    currentWavArrayBuffer=encodeWav(data,audioCtx.sampleRate);
+    currentWavBlob=new Blob([currentWavArrayBuffer],{type:'audio/wav'});
+    enableEditor(); drawWave(); clock.textContent=fmt(loopEnd);
+    setStatus('Recorded — trim or play');
+  }
+  function enableEditor(){
+    const d=currentBuffer.duration;
+    [startRange,endRange].forEach(r=>{r.disabled=false;r.max=d;r.step=.001});
+    startRange.value=loopStart; endRange.value=loopEnd;
+    playBtn.disabled=false; saveBtn.disabled=false; exportBtn.disabled=false;
+    nudgeButtons.forEach(b=>b.disabled=false);
+    updateTrimLabels();
+  }
+  function updateTrimLabels(){
+    startVal.textContent=loopStart.toFixed(3)+' s'; endVal.textContent=loopEnd.toFixed(3)+' s';
+    startRange.value=loopStart; endRange.value=loopEnd; drawWave();
+  }
+  function stopPlayback(){
+    if(playSource){try{playSource.stop()}catch{} playSource.disconnect(); playSource=null}
+    playing=false; playBtn.textContent='▶ Loop'; setStatus(currentBuffer?'Ready to loop':'Ready');
+  }
+  async function togglePlay(){
+    if(!currentBuffer)return;
+    await ensureAudio();
+    if(playing){stopPlayback();return}
+    if(loopEnd-loopStart<.05)return;
+    playSource=audioCtx.createBufferSource();
+    playSource.buffer=currentBuffer; playSource.loop=true; playSource.loopStart=loopStart; playSource.loopEnd=loopEnd;
+    playSource.connect(audioCtx.destination); playSource.start(0,loopStart);
+    playing=true; playBtn.textContent='■ Stop Loop'; setStatus('Looping','play');
+  }
+  function drawWave(){
+    const w=canvas.width,h=canvas.height;
+    ctx.clearRect(0,0,w,h); ctx.fillStyle='#101214';ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='#30363b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();
+    if(!currentBuffer)return;
+    const data=currentBuffer.getChannelData(0), step=Math.max(1,Math.floor(data.length/w));
+    ctx.strokeStyle='#d7dadd';ctx.lineWidth=1.3;ctx.beginPath();
+    for(let x=0;x<w;x++){
+      let min=1,max=-1,base=x*step;
+      for(let i=0;i<step && base+i<data.length;i++){let v=data[base+i];if(v<min)min=v;if(v>max)max=v}
+      ctx.moveTo(x,(1+min)*h/2);ctx.lineTo(x,(1+max)*h/2);
+    }
+    ctx.stroke();
+    const sx=(loopStart/currentBuffer.duration)*w, ex=(loopEnd/currentBuffer.duration)*w;
+    ctx.fillStyle='rgba(230,162,60,.10)';ctx.fillRect(sx,0,Math.max(0,ex-sx),h);
+    ctx.strokeStyle='#e6a23c';ctx.lineWidth=5;
+    ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,h);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(ex,0);ctx.lineTo(ex,h);ctx.stroke();
+    ctx.fillStyle='#e6a23c';
+    ctx.beginPath();ctx.arc(sx,18,10,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(ex,18,10,0,Math.PI*2);ctx.fill();
+  }
+  function pointerTime(e){
+    const r=canvas.getBoundingClientRect(), x=Math.max(0,Math.min(r.width,e.clientX-r.left));
+    return (x/r.width)*currentBuffer.duration;
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    if(!currentBuffer)return;
+    const t=pointerTime(e), thresh=currentBuffer.duration*.04;
+    dragMarker=Math.abs(t-loopStart)<Math.abs(t-loopEnd)?'start':'end';
+    if(Math.min(Math.abs(t-loopStart),Math.abs(t-loopEnd))>thresh) dragMarker=(t<(loopStart+loopEnd)/2?'start':'end');
+    canvas.setPointerCapture(e.pointerId); moveMarker(t);
+  });
+  canvas.addEventListener('pointermove',e=>{if(dragMarker)moveMarker(pointerTime(e))});
+  canvas.addEventListener('pointerup',()=>dragMarker=null);
+  function moveMarker(t){
+    if(dragMarker==='start') loopStart=Math.max(0,Math.min(t,loopEnd-.05));
+    else loopEnd=Math.min(currentBuffer.duration,Math.max(t,loopStart+.05));
+    if(playing) {stopPlayback(); togglePlay()}
+    updateTrimLabels();
+  }
+  startRange.addEventListener('input',()=>{
+    loopStart=Math.min(parseFloat(startRange.value),loopEnd-.05); updateTrimLabels();
+  });
+  endRange.addEventListener('input',()=>{
+    loopEnd=Math.max(parseFloat(endRange.value),loopStart+.05); updateTrimLabels();
+  });
+  $('nudgeStartBack').addEventListener('click',()=>{loopStart=Math.max(0,loopStart-.01);updateTrimLabels()});
+  $('nudgeStartFwd').addEventListener('click',()=>{loopStart=Math.min(loopEnd-.05,loopStart+.01);updateTrimLabels()});
+  $('nudgeEndBack').addEventListener('click',()=>{loopEnd=Math.max(loopStart+.05,loopEnd-.01);updateTrimLabels()});
+  $('nudgeEndFwd').addEventListener('click',()=>{loopEnd=Math.min(currentBuffer.duration,loopEnd+.01);updateTrimLabels()});
+
+  recordBtn.addEventListener('click',()=>recording?stopRecording():startRecording());
+  playBtn.addEventListener('click',togglePlay);
+
+  function encodeWav(samples,sampleRate){
+    const b=new ArrayBuffer(44+samples.length*2),v=new DataView(b);
+    const wr=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+    wr(0,'RIFF');v.setUint32(4,36+samples.length*2,true);wr(8,'WAVE');wr(12,'fmt ');
+    v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sampleRate,true);
+    v.setUint32(28,sampleRate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);wr(36,'data');v.setUint32(40,samples.length*2,true);
+    let o=44;for(let i=0;i<samples.length;i++,o+=2){let s=Math.max(-1,Math.min(1,samples[i]));v.setInt16(o,s<0?s*32768:s*32767,true)}
+    return b;
+  }
+  function downloadBlob(blob,name){
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  }
+  exportBtn.addEventListener('click',()=>{
+    if(!currentBuffer)return;
+    const trimmed=trimmedWavBlob();
+    downloadBlob(trimmed,(loopName.value.trim()||'guitar-loop').replace(/[^\w\- ]/g,'')+'.wav');
+  });
+  function trimmedWavBlob(){
+    const sr=currentBuffer.sampleRate, data=currentBuffer.getChannelData(0);
+    const a=Math.floor(loopStart*sr), b=Math.floor(loopEnd*sr);
+    const copy=new Float32Array(b-a);copy.set(data.subarray(a,b));
+    return new Blob([encodeWav(copy,sr)],{type:'audio/wav'});
+  }
+
+  function dbOpen(){
+    return new Promise((res,rej)=>{
+      const q=indexedDB.open('guitar-loop-db',1);
+      q.onupgradeneeded=()=>q.result.createObjectStore('loops',{keyPath:'id',autoIncrement:true});
+      q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);
+    });
+  }
+  async function saveLoop(){
+    if(!currentBuffer)return;
+    const db=await dbOpen(), tx=db.transaction('loops','readwrite');
+    const name=loopName.value.trim()||new Date().toLocaleString();
+    tx.objectStore('loops').add({
+      name,created:Date.now(),wav:currentWavBlob,start:loopStart,end:loopEnd,duration:currentBuffer.duration
+    });
+    tx.oncomplete=()=>{db.close();loopName.value='';renderSaved();setStatus('Loop saved')};
+  }
+  saveBtn.addEventListener('click',saveLoop);
+
+  async function renderSaved(){
+    const db=await dbOpen(), tx=db.transaction('loops','readonly'), q=tx.objectStore('loops').getAll();
+    q.onsuccess=()=>{
+      const items=q.result.sort((a,b)=>b.created-a.created);loopsEl.innerHTML='';
+      if(!items.length){loopsEl.innerHTML='<div class="empty">No saved loops yet.</div>';db.close();return}
+      items.forEach(item=>{
+        const el=document.createElement('div');el.className='loop';
+        const info=document.createElement('div');
+        info.innerHTML=`<div class="loop-name"></div><div class="loop-meta">${new Date(item.created).toLocaleDateString()} • ${item.duration.toFixed(1)} sec recording</div>`;
+        info.querySelector('.loop-name').textContent=item.name;
+        const acts=document.createElement('div');acts.className='loop-actions';
+        const load=document.createElement('button');load.textContent='Load';
+        const dl=document.createElement('button');dl.textContent='WAV';
+        const del=document.createElement('button');del.textContent='Delete';
+        load.addEventListener('click',()=>loadSaved(item));
+        dl.addEventListener('click',()=>downloadBlob(item.wav,item.name.replace(/[^\w\- ]/g,'')+'.wav'));
+        del.addEventListener('click',()=>deleteSaved(item.id));
+        acts.append(load,dl,del);el.append(info,acts);loopsEl.appendChild(el);
+      });
+      db.close();
+    };
+  }
+  async function loadSaved(item){
+    stopPlayback();await ensureAudio();
+    const ab=await item.wav.arrayBuffer();
+    currentBuffer=await audioCtx.decodeAudioData(ab.slice(0));
+    currentWavBlob=item.wav;currentWavArrayBuffer=ab;
+    loopStart=Math.max(0,Math.min(item.start||0,currentBuffer.duration-.05));
+    loopEnd=Math.min(currentBuffer.duration,Math.max(item.end||currentBuffer.duration,loopStart+.05));
+    enableEditor();drawWave();clock.textContent=fmt(loopEnd-loopStart);loopName.value=item.name;
+    setStatus('Loaded: '+item.name);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  async function deleteSaved(id){
+    if(!confirm('Delete this saved loop?'))return;
+    const db=await dbOpen(),tx=db.transaction('loops','readwrite');tx.objectStore('loops').delete(id);
+    tx.oncomplete=()=>{db.close();renderSaved()};
+  }
+
+  window.addEventListener('resize',drawWave);
+  drawWave();renderSaved();
+})();
+</script>
+</body>
+</html>
