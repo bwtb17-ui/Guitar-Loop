@@ -128,7 +128,7 @@
     <div id="loops" class="loops"><div class="empty">No saved loops yet.</div></div>
   </section>
 
-  <div class="footer">For best results, use headphones while recording so the loop playback is not re-recorded by the microphone.</div>
+  <div class="footer">While recording or looping, Guitar Loop will try to keep your screen awake. For best results, use headphones while recording so loop playback is not re-recorded by the microphone.</div>
 </div>
 
 <script>
@@ -145,6 +145,28 @@
   let currentBuffer=null, currentWavBlob=null, currentWavArrayBuffer=null;
   let loopStart=0, loopEnd=0, playing=false, playSource=null;
   let dragMarker=null;
+  let wakeLock=null;
+
+  async function requestWakeLock(){
+    if(!('wakeLock' in navigator)) return;
+    try{
+      if(!wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release',()=>{ wakeLock=null; });
+      }
+    }catch(e){
+      console.log('Wake Lock unavailable:', e);
+    }
+  }
+  async function releaseWakeLock(){
+    if(wakeLock){
+      try{ await wakeLock.release(); }catch(e){}
+      wakeLock=null;
+    }
+  }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible' && (playing || recording)) requestWakeLock();
+  });
 
   function setStatus(text, mode=''){
     status.textContent=text; dot.className='dot'+(mode ? ' '+mode : '');
@@ -176,6 +198,7 @@
       };
       sourceNode.connect(processor); processor.connect(zeroGain); zeroGain.connect(audioCtx.destination);
       recording=true; recordingStart=performance.now(); timer=setInterval(updateClock,100);
+      requestWakeLock();
       recordBtn.textContent='■ Stop'; recordBtn.classList.add('recording');
       playBtn.disabled=true; setStatus('Recording…','rec'); clock.textContent='0:00.0';
     }catch(e){
@@ -185,6 +208,7 @@
   }
   async function stopRecording(){
     recording=false; clearInterval(timer);
+    if(!playing) releaseWakeLock();
     if(processor){processor.disconnect();processor.onaudioprocess=null}
     if(sourceNode) sourceNode.disconnect();
     if(zeroGain) zeroGain.disconnect();
@@ -218,6 +242,7 @@
   function stopPlayback(){
     if(playSource){try{playSource.stop()}catch{} playSource.disconnect(); playSource=null}
     playing=false; playBtn.textContent='▶ Loop'; setStatus(currentBuffer?'Ready to loop':'Ready');
+    if(!recording) releaseWakeLock();
   }
   async function togglePlay(){
     if(!currentBuffer)return;
@@ -228,6 +253,7 @@
     playSource.buffer=currentBuffer; playSource.loop=true; playSource.loopStart=loopStart; playSource.loopEnd=loopEnd;
     playSource.connect(audioCtx.destination); playSource.start(0,loopStart);
     playing=true; playBtn.textContent='■ Stop Loop'; setStatus('Looping','play');
+    requestWakeLock();
   }
   function drawWave(){
     const w=canvas.width,h=canvas.height;
