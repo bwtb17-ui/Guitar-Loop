@@ -93,6 +93,13 @@
     <div class="sub">Drag the orange markers on the waveform or use the sliders.</div>
     <canvas id="wave" width="1200" height="300"></canvas>
 
+    <div style="margin-top:14px">
+      <label>Playback boost: <span id="boostVal" class="value">2.0×</span>
+        <input id="boostRange" type="range" min="0.5" max="4" value="2" step="0.1">
+      </label>
+      <div class="hint">Raise this if your guitar recording is too quiet. Start around 2×. If it sounds distorted, lower the boost.</div>
+    </div>
+
     <div class="trim-row">
       <label>Loop start: <span id="startVal" class="value">0.000 s</span>
         <input id="startRange" type="range" min="0" max="1" value="0" step="0.001" disabled>
@@ -139,6 +146,7 @@
   const startRange=$('startRange'), endRange=$('endRange'), startVal=$('startVal'), endVal=$('endVal');
   const saveBtn=$('saveBtn'), exportBtn=$('exportBtn'), loopName=$('loopName'), loopsEl=$('loops');
   const nudgeButtons=['nudgeStartBack','nudgeStartFwd','nudgeEndBack','nudgeEndFwd'].map($);
+  const boostRange=$('boostRange'), boostVal=$('boostVal');
 
   let audioCtx=null, stream=null, sourceNode=null, processor=null, zeroGain=null;
   let chunks=[], recording=false, recordingStart=0, timer=null;
@@ -146,6 +154,7 @@
   let loopStart=0, loopEnd=0, playing=false, playSource=null;
   let dragMarker=null;
   let wakeLock=null;
+  let playbackGain=null;
 
   async function requestWakeLock(){
     if(!('wakeLock' in navigator)) return;
@@ -179,7 +188,12 @@
     if(recording) clock.textContent=fmt((performance.now()-recordingStart)/1000);
   }
   async function ensureAudio(){
-    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!audioCtx){
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      playbackGain=audioCtx.createGain();
+      playbackGain.gain.value=parseFloat(boostRange.value);
+      playbackGain.connect(audioCtx.destination);
+    }
     if(audioCtx.state==='suspended') await audioCtx.resume();
   }
   async function startRecording(){
@@ -251,7 +265,7 @@
     if(loopEnd-loopStart<.05)return;
     playSource=audioCtx.createBufferSource();
     playSource.buffer=currentBuffer; playSource.loop=true; playSource.loopStart=loopStart; playSource.loopEnd=loopEnd;
-    playSource.connect(audioCtx.destination); playSource.start(0,loopStart);
+    playSource.connect(playbackGain); playSource.start(0,loopStart);
     playing=true; playBtn.textContent='■ Stop Loop'; setStatus('Looping','play');
     requestWakeLock();
   }
@@ -306,6 +320,12 @@
   $('nudgeStartFwd').addEventListener('click',()=>{loopStart=Math.min(loopEnd-.05,loopStart+.01);updateTrimLabels()});
   $('nudgeEndBack').addEventListener('click',()=>{loopEnd=Math.max(loopStart+.05,loopEnd-.01);updateTrimLabels()});
   $('nudgeEndFwd').addEventListener('click',()=>{loopEnd=Math.min(currentBuffer.duration,loopEnd+.01);updateTrimLabels()});
+
+  boostRange.addEventListener('input',()=>{
+    const v=parseFloat(boostRange.value);
+    boostVal.textContent=v.toFixed(1)+'×';
+    if(playbackGain) playbackGain.gain.value=v;
+  });
 
   recordBtn.addEventListener('click',()=>recording?stopRecording():startRecording());
   playBtn.addEventListener('click',togglePlay);
