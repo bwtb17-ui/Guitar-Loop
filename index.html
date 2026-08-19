@@ -125,6 +125,7 @@
     </label>
     <div class="row" style="margin-top:12px">
       <button id="saveBtn" class="primary" disabled>Save Loop</button>
+      <button id="discardBtn" disabled>Discard Recording</button>
       <button id="exportBtn" disabled>Export WAV</button>
     </div>
   </section>
@@ -144,7 +145,7 @@
   const recordBtn=$('recordBtn'), playBtn=$('playBtn'), status=$('status'), dot=$('dot'), clock=$('clock');
   const canvas=$('wave'), ctx=canvas.getContext('2d');
   const startRange=$('startRange'), endRange=$('endRange'), startVal=$('startVal'), endVal=$('endVal');
-  const saveBtn=$('saveBtn'), exportBtn=$('exportBtn'), loopName=$('loopName'), loopsEl=$('loops');
+  const saveBtn=$('saveBtn'), discardBtn=$('discardBtn'), exportBtn=$('exportBtn'), loopName=$('loopName'), loopsEl=$('loops');
   const nudgeButtons=['nudgeStartBack','nudgeStartFwd','nudgeEndBack','nudgeEndFwd'].map($);
   const boostRange=$('boostRange'), boostVal=$('boostVal');
 
@@ -245,7 +246,7 @@
     const d=currentBuffer.duration;
     [startRange,endRange].forEach(r=>{r.disabled=false;r.max=d;r.step=.001});
     startRange.value=loopStart; endRange.value=loopEnd;
-    playBtn.disabled=false; saveBtn.disabled=false; exportBtn.disabled=false;
+    playBtn.disabled=false; saveBtn.disabled=false; discardBtn.disabled=false; exportBtn.disabled=false;
     nudgeButtons.forEach(b=>b.disabled=false);
     updateTrimLabels();
   }
@@ -362,6 +363,39 @@
       q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);
     });
   }
+  function discardRecording(){
+    if(!currentBuffer) return;
+    if(!confirm('Discard this recording?')) return;
+
+    stopPlayback();
+    currentBuffer=null;
+    currentWavBlob=null;
+    currentWavArrayBuffer=null;
+    loopStart=0;
+    loopEnd=0;
+    chunks=[];
+    loopName.value='';
+    clock.textContent='0:00.0';
+
+    startRange.disabled=true;
+    endRange.disabled=true;
+    startRange.max=1; endRange.max=1;
+    startRange.value=0; endRange.value=1;
+    startVal.textContent='0.000 s';
+    endVal.textContent='0.000 s';
+
+    playBtn.disabled=true;
+    saveBtn.disabled=true;
+    discardBtn.disabled=true;
+    exportBtn.disabled=true;
+    nudgeButtons.forEach(b=>b.disabled=true);
+
+    drawWave();
+    setStatus('Ready');
+  }
+
+  discardBtn.addEventListener('click', discardRecording);
+
   async function saveLoop(){
     if(!currentBuffer)return;
     const db=await dbOpen(), tx=db.transaction('loops','readwrite');
