@@ -141,10 +141,17 @@
   </section>
 
   <div class="footer">While recording or looping, Guitar Loop will try to keep your screen awake. For best results, use headphones while recording so loop playback is not re-recorded by the microphone.</div>
-</div>
+</div>  
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 (() => {
+ const SUPABASE_URL = 'https://wjfdmyeqceyfjimigio.supabase.co';
+
+const SUPABASE_KEY = 'sb_publishable_qvX-t-CNVkrv9VRV8CusPQ_XCZVdMdu;
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  
   const $ = id => document.getElementById(id);
   const recordBtn=$('recordBtn'), playBtn=$('playBtn'), status=$('status'), dot=$('dot'), clock=$('clock');
   const canvas=$('wave'), ctx=canvas.getContext('2d');
