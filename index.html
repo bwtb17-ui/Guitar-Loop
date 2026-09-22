@@ -419,6 +419,62 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     tx.oncomplete=()=>{db.close();loopName.value='';renderSaved();setStatus('Loop saved')};
   }
   saveBtn.addEventListener('click',saveLoop);
+async function publishLoop(){
+
+  if(!currentWavBlob) return;
+
+  const name = loopName.value.trim() || new Date().toLocaleString();
+
+  publishBtn.disabled = true;
+
+  setStatus('Publishing...');
+
+  try {
+
+    const arrayBuffer = await currentWavBlob.arrayBuffer();
+
+    const bytes = new Uint8Array(arrayBuffer);
+
+    const { error } = await db
+
+      .from('recordings')
+
+      .insert({
+
+        name: name,
+
+        audio_data: Array.from(bytes),
+
+        start_time: loopStart,
+
+        end_time: loopEnd,
+
+        duration: currentBuffer.duration
+
+      });
+
+    if(error) throw error;
+
+    setStatus('Published!');
+
+  } catch(err) {
+
+    console.error(err);
+
+    setStatus('Publish failed');
+
+    alert('Publish failed: ' + err.message);
+
+  } finally {
+
+    publishBtn.disabled = false;
+
+  }
+
+}
+
+publishBtn.addEventListener('click', publishLoop);
+
 
   async function renderSaved(){
     const db=await dbOpen(), tx=db.transaction('loops','readonly'), q=tx.objectStore('loops').getAll();
