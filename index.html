@@ -419,6 +419,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     tx.oncomplete=()=>{db.close();loopName.value='';renderSaved();setStatus('Loop saved')};
   }
   saveBtn.addEventListener('click',saveLoop);
+
 async function publishLoop(){
 
   if(!currentWavBlob) return;
@@ -431,29 +432,45 @@ async function publishLoop(){
 
   try {
 
-    const arrayBuffer = await currentWavBlob.arrayBuffer();
+    const fileName =
 
-    const bytes = new Uint8Array(arrayBuffer);
+      Date.now() + '-' +
 
-    const { error } = await db
+      Math.random().toString(36).slice(2) +
+
+      '.wav';
+
+    const { error: uploadError } = await db.storage
+
+      .from('recordings')
+
+      .upload(fileName, currentWavBlob, {
+
+        contentType: 'audio/wav',
+
+        upsert: false
+
+      });
+
+    if(uploadError) throw uploadError;
+
+    const { error: dbError } = await db
 
       .from('recordings')
 
       .insert({
 
-        name: name,
+        title: name,
 
-        audio_data: Array.from(bytes),
+        audio_path: fileName,
 
-        start_time: loopStart,
+        duration: currentBuffer.duration,
 
-        end_time: loopEnd,
-
-        duration: currentBuffer.duration
+        track_type: 'loop'
 
       });
 
-    if(error) throw error;
+    if(dbError) throw dbError;
 
     setStatus('Published!');
 
@@ -472,7 +489,6 @@ async function publishLoop(){
   }
 
 }
-
 publishBtn.addEventListener('click', publishLoop);
 
 
