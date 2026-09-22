@@ -258,7 +258,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const d=currentBuffer.duration;
     [startRange,endRange].forEach(r=>{r.disabled=false;r.max=d;r.step=.001});
     startRange.value=loopStart; endRange.value=loopEnd;
-    playBtn.disabled=false; saveBtn.disabled=false; discardBtn.disabled=false; exportBtn.disabled=false;
+    playBtn.disabled=false; saveBtn.disabled=false; discardBtn.disabled=false; exportBtn.disabled=false; publishBtn.disabled=false;
     nudgeButtons.forEach(b=>b.disabled=false);
     updateTrimLabels();
   }
@@ -400,6 +400,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     saveBtn.disabled=true;
     discardBtn.disabled=true;
     exportBtn.disabled=true;
+    publishBtn.disabled=true;
     nudgeButtons.forEach(b=>b.disabled=true);
 
     drawWave();
