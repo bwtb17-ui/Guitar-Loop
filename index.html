@@ -449,7 +449,7 @@ console.log('PUBLISH: function started');
   setStatus('Publishing...');
 
   try {
-
+console.log('PUBLISH: entered try block');
     const fileName =
 
       Date.now() + '-' +
@@ -458,6 +458,7 @@ console.log('PUBLISH: function started');
 
       '.wav';
 
+  console.log('PUBLISH: about to upload to Supabase');
     const { error: uploadError } = await db.storage
 
       .from('recordings')
@@ -469,7 +470,7 @@ console.log('PUBLISH: function started');
         upsert: false
 
       });
-
+console.log('PUBLISH: upload finished', uploadError);
     if(uploadError) throw uploadError;
 
     const { error: dbError } = await db
