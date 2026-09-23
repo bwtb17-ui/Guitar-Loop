@@ -416,7 +416,17 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     tx.objectStore('loops').add({
       name,created:Date.now(),wav:currentWavBlob,start:loopStart,end:loopEnd,duration:currentBuffer.duration
     });
-    tx.oncomplete=()=>{db.close();loopName.value='';renderSaved();setStatus('Loop saved')};
+    tx.oncomplete=()=>{
+
+  db.close();
+
+  renderSaved();
+
+  publishBtn.disabled = !currentWavBlob;
+
+  setStatus('Loop saved');
+
+};
   }
   saveBtn.addEventListener('click',saveLoop);
 
