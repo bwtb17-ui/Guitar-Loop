@@ -140,6 +140,20 @@
     <div class="sub">Stored on this device/browser.</div>
     <div id="loops" class="loops"><div class="empty">No saved loops yet.</div></div>
   </section>
+<section class="card">
+
+  <div class="section-title">Published Recordings</div>
+
+  <div class="sub">Recordings shared from your devices.</div>
+
+  <div id="publishedLoops" class="loops">
+
+    <div class="empty">Loading published recordings...</div>
+
+  </div>
+
+</section>
+
 
   <div class="footer">While recording or looping, Guitar Loop will try to keep your screen awake. For best results, use headphones while recording so loop playback is not re-recorded by the microphone.</div>
 </div>  
@@ -509,6 +523,62 @@ console.log('PUBLISH: database insert finished', dbError);
 
 }
 publishBtn.addEventListener('click', publishLoop);
+
+  async function renderPublished() {
+
+  const box = document.getElementById('publishedLoops');
+
+  box.innerHTML = '<div class="empty">Loading published recordings...</div>';
+
+  const { data, error } = await db
+
+    .from('recordings')
+
+    .select('*')
+
+    .order('created_at', { ascending: false });
+
+  if (error) {
+
+    console.error('Error loading published recordings:', error);
+
+    box.innerHTML = '<div class="empty">Could not load published recordings.</div>';
+
+    return;
+
+  }
+
+  if (!data || data.length === 0) {
+
+    box.innerHTML = '<div class="empty">No published recordings yet.</div>';
+
+    return;
+
+  }
+
+  box.innerHTML = '';
+
+  data.forEach(item => {
+
+    const row = document.createElement('div');
+
+    row.className = 'loop';
+
+    row.innerHTML = `
+
+      <div class="loop-name">${item.title || 'Untitled recording'}</div>
+
+      <div class="loop-meta">${Number(item.duration || 0).toFixed(1)} sec recording</div>
+
+    `;
+
+    box.appendChild(row);
+
+  });
+
+}
+
+
 
 
   async function renderSaved(){
