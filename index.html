@@ -431,8 +431,16 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   saveBtn.addEventListener('click',saveLoop);
 
 async function publishLoop(){
+console.log('PUBLISH: function started');
+  if(!currentWavBlob) {
 
-  if(!currentWavBlob) return;
+  console.log('PUBLISH STOPPED: currentWavBlob is missing');
+
+  alert('Publish stopped: WAV blob is missing');
+
+  return;
+
+}
 
   const name = loopName.value.trim() || new Date().toLocaleString();
 
