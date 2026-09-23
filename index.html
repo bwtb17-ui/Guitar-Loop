@@ -564,17 +564,91 @@ publishBtn.addEventListener('click', publishLoop);
 
     row.className = 'loop';
 
-    row.innerHTML = `
+    const info = document.createElement('div');
 
-      <div class="loop-name">${item.title || 'Untitled recording'}</div>
+    info.className = 'loop-info';
 
-      <div class="loop-meta">${Number(item.duration || 0).toFixed(1)} sec recording</div>
+    info.innerHTML = `
+
+        <div class="loop-name">${item.title || 'Untitled recording'}</div>
+
+        <div class="loop-meta">${Number(item.duration || 0).toFixed(1)} sec recording</div>
 
     `;
 
+    const actions = document.createElement('div');
+
+    actions.className = 'loop-actions';
+
+    const loadBtn = document.createElement('button');
+
+    loadBtn.textContent = 'Load';
+
+    loadBtn.addEventListener('click', async () => {
+
+        try {
+
+            setStatus('Loading published recording...');
+
+            const { data, error } = await db.storage
+
+                .from('recordings')
+
+                .download(item.audio_path);
+
+            if (error) throw error;
+
+            const ab = await data.arrayBuffer();
+
+            await ensureAudio();
+
+            currentBuffer = await audioCtx.decodeAudioData(ab.slice(0));
+
+            currentWavBlob = data;
+
+            currentWavArrayBuffer = ab;
+
+            loopStart = 0;
+
+            loopEnd = currentBuffer.duration;
+
+            enableEditor();
+
+            drawWave();
+
+            clock.textContent = fmt(loopEnd - loopStart);
+
+            loopName.value = item.title || '';
+
+            setStatus('Published recording loaded');
+
+            window.scrollTo({
+
+                top: 0,
+
+                behavior: 'smooth'
+
+            });
+
+        } catch (err) {
+
+            console.error(err);
+
+            setStatus('Could not load published recording');
+
+        }
+
+    });
+
+    actions.appendChild(loadBtn);
+
+    row.appendChild(info);
+
+    row.appendChild(actions);
+
     box.appendChild(row);
 
-  });
+});
 
 }
 
