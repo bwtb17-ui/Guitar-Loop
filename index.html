@@ -441,7 +441,7 @@ console.log('PUBLISH: function started');
   return;
 
 }
-
+console.log('PUBLISH: reached name line', loopName);
   const name = loopName.value.trim() || new Date().toLocaleString();
 
   publishBtn.disabled = true;
