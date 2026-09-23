@@ -472,7 +472,7 @@ console.log('PUBLISH: entered try block');
       });
 console.log('PUBLISH: upload finished', uploadError);
     if(uploadError) throw uploadError;
-
+console.log('PUBLISH: about to insert datbase row');
     const { error: dbError } = await db
 
       .from('recordings')
@@ -488,7 +488,7 @@ console.log('PUBLISH: upload finished', uploadError);
         track_type: 'loop'
 
       });
-
+console.log(PUBLISH: database insert finished',dbError);
     if(dbError) throw dbError;
 
     setStatus('Published!');
