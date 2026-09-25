@@ -275,6 +275,7 @@ const overdubBtn=$('overdubBtn');
     startRange.value=loopStart; endRange.value=loopEnd;
     playBtn.disabled=false; saveBtn.disabled=false; discardBtn.disabled=false; exportBtn.disabled=false; publishBtn.disabled=false;
     nudgeButtons.forEach(b=>b.disabled=false);
+    overdubBtn.disabled=false;
     updateTrimLabels();
   }
   function updateTrimLabels(){
