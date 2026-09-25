@@ -175,7 +175,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   const saveBtn=$('saveBtn'), discardBtn=$('discardBtn'), exportBtn=$('exportBtn'), publishBtn=$('publishBtn'), loopName=$('loopName'), loopsEl=$('loops');
   const nudgeButtons=['nudgeStartBack','nudgeStartFwd','nudgeEndBack','nudgeEndFwd'].map($);
   const boostRange=$('boostRange'), boostVal=$('boostVal');
-
+const overdubBtn=$('overdubBtn');
   let audioCtx=null, stream=null, sourceNode=null, processor=null, zeroGain=null;
   let chunks=[], recording=false, recordingStart=0, timer=null;
   let currentBuffer=null, currentWavBlob=null, currentWavArrayBuffer=null;
