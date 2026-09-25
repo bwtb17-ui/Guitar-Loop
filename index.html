@@ -183,7 +183,8 @@ const overdubBtn=$('overdubBtn');
   let dragMarker=null;
   let wakeLock=null;
   let playbackGain=null;
-
+let overdubbing=false;
+  let overdubBaseBuffer=null;
   async function requestWakeLock(){
     if(!('wakeLock' in navigator)) return;
     try{
@@ -259,8 +260,32 @@ const overdubBtn=$('overdubBtn');
 
     const total=chunks.reduce((n,a)=>n+a.length,0);
     if(total<1000){setStatus('Recording too short');return}
-    const data=new Float32Array(total); let off=0;
+    let data=new Float32Array(total); let off=0;
     chunks.forEach(a=>{data.set(a,off);off+=a.length});
+    // If this was an overdub, mix the original loop with the new recording
+    if(overdubbing && overdubBaseBuffer){
+
+  const base = overdubBaseBuffer.getChannelData(0);
+
+  const mixed = new Float32Array(base.length);
+
+  for(let i=0;i<mixed.length;i++){
+
+    const original = base[i] || 0;
+
+    const added = data[i] || 0;
+
+    mixed[i] = Math.max(-1, Math.min(1, original + added));
+
+  }
+
+  data = mixed;
+
+  overdubbing = false;
+
+  overdubBaseBuffer = null;
+
+}
     currentBuffer=audioCtx.createBuffer(1,data.length,audioCtx.sampleRate);
     currentBuffer.copyToChannel(data,0);
     loopStart=0; loopEnd=currentBuffer.duration;
@@ -298,6 +323,108 @@ const overdubBtn=$('overdubBtn');
     playing=true; playBtn.textContent='■ Stop Loop'; setStatus('Looping','play');
     requestWakeLock();
   }
+  async function startOverdub(){
+
+  if(!currentBuffer) return;
+overdubbing=true;
+    overdubBaseBuffer=currentBuffer;
+  if(recording){
+
+    stopRecording();
+
+    return;
+
+  }
+
+  stopPlayback();
+
+  await ensureAudio();
+
+  try{
+
+    stream = await navigator.mediaDevices.getUserMedia({
+
+      audio:{
+
+        echoCancellation:false,
+
+        noiseSuppression:false,
+
+        autoGainControl:false
+
+      },
+
+      video:false
+
+    });
+
+    chunks=[];
+
+    sourceNode=audioCtx.createMediaStreamSource(stream);
+
+    processor=audioCtx.createScriptProcessor(4096,1,1);
+
+    zeroGain=audioCtx.createGain();
+
+    zeroGain.gain.value=0;
+
+    processor.onaudioprocess=e=>{
+
+      if(!recording) return;
+
+      chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+
+    };
+
+    sourceNode.connect(processor);
+
+    processor.connect(zeroGain);
+
+    zeroGain.connect(audioCtx.destination);
+
+    playSource=audioCtx.createBufferSource();
+
+    playSource.buffer=currentBuffer;
+
+    playSource.loop=true;
+
+    playSource.loopStart=loopStart;
+
+    playSource.loopEnd=loopEnd;
+
+    playSource.connect(playbackGain);
+
+    recording=true;
+
+    recordingStart=performance.now();
+
+    timer=setInterval(updateClock,100);
+
+    playSource.start(0,loopStart);
+
+    playing=true;
+
+    overdubBtn.textContent='■ Stop Overdub';
+
+    recordBtn.disabled=true;
+
+    playBtn.disabled=true;
+
+    setStatus('Overdubbing...','rec');
+
+    requestWakeLock();
+
+  }catch(e){
+
+    console.error(e);
+
+    alert('Microphone access is required for overdubbing.');
+
+    setStatus('Microphone unavailable');
+
+  }
+
+}
   function drawWave(){
     const w=canvas.width,h=canvas.height;
     ctx.clearRect(0,0,w,h); ctx.fillStyle='#101214';ctx.fillRect(0,0,w,h);
@@ -358,7 +485,7 @@ const overdubBtn=$('overdubBtn');
 
   recordBtn.addEventListener('click',()=>recording?stopRecording():startRecording());
   playBtn.addEventListener('click',togglePlay);
-
+overdubBtn.addEventListener('click', startOverdub);
   function encodeWav(samples,sampleRate){
     const b=new ArrayBuffer(44+samples.length*2),v=new DataView(b);
     const wr=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
